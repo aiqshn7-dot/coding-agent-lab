@@ -1,4 +1,4 @@
-"""Terminal entry point for scripted repairs."""
+"""Terminal entry point for scripted repairs and the Gradio UI."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ from core.models import RepairResult
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Parse the repair command and print the visible result."""
+    """Parse the selected command and run repair or the local UI."""
     parser = argparse.ArgumentParser(
         description="Run a bounded repair against one evals/ project."
     )
@@ -31,7 +31,17 @@ def main(argv: list[str] | None = None) -> int:
         help="Chat provider used for repair decisions",
     )
 
+    subparsers.add_parser(
+        "ui", help="Open the local Gradio page for scripted repairs"
+    )
+
     args = parser.parse_args(argv)
+    if args.command == "ui":
+        from adapters.gradio_ui import create_demo, launch_demo
+
+        launch_demo(create_demo())
+        return 0
+
     if args.command != "repair":
         parser.error(f"unsupported command: {args.command}")
 
