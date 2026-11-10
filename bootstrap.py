@@ -5,28 +5,46 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from adapters.models.ollama import OllamaClient
 from adapters.models.scripted import ScriptedClient
 from adapters.sandbox.repair_tools import RepairTools
 from adapters.sandbox.runner import create_workspace
+from core.ports import ChatClient
 from core.repair_service import RepairService
 
 ROOT = Path(__file__).resolve().parent
 EVALS_ROOT = ROOT / "evals"
 
 
-def build_repair_service(provider: str) -> RepairService:
+def build_repair_service(
+    provider: str,
+    *,
+    model: str | None = None,
+    temperature: float | None = None,
+) -> RepairService:
     """Connect the selected chat provider to runner-backed repair tools."""
-    if provider != "scripted":
-        raise ValueError(f"unsupported provider: {provider}")
+    if provider == "scripted":
 
-    def make_client(case_name: str) -> ScriptedClient:
-        try:
-            replies = SCRIPTED_SEQUENCES[case_name]
-        except KeyError as exc:
-            raise ValueError(
-                f"no scripted sequence for case: {case_name}"
-            ) from exc
-        return ScriptedClient(replies)
+        def make_client(case_name: str) -> ChatClient:
+            try:
+                replies = SCRIPTED_SEQUENCES[case_name]
+            except KeyError as exc:
+                raise ValueError(
+                    f"no scripted sequence for case: {case_name}"
+                ) from exc
+            return ScriptedClient(replies)
+
+    elif provider == "ollama":
+        client = OllamaClient(
+            model=model,
+            temperature=0.0 if temperature is None else temperature,
+        )
+
+        def make_client(case_name: str) -> ChatClient:
+            return client
+
+    else:
+        raise ValueError(f"unsupported provider: {provider}")
 
     def make_tools(workspace: Path) -> RepairTools:
         return RepairTools(workspace)

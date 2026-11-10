@@ -27,8 +27,21 @@ def main(argv: list[str] | None = None) -> int:
     repair_parser.add_argument(
         "--provider",
         required=True,
-        choices=["scripted"],
+        choices=["scripted", "ollama"],
         help="Chat provider used for repair decisions",
+    )
+    repair_parser.add_argument(
+        "--model",
+        default=None,
+        help=(
+            "Ollama model name (defaults to OLLAMA_MODEL or qwen2.5-coder:7b)"
+        ),
+    )
+    repair_parser.add_argument(
+        "--temperature",
+        type=float,
+        default=None,
+        help="Ollama sampling temperature (defaults to 0.0)",
     )
 
     subparsers.add_parser(
@@ -45,8 +58,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.command != "repair":
         parser.error(f"unsupported command: {args.command}")
 
+    if args.provider != "ollama" and (
+        args.model is not None or args.temperature is not None
+    ):
+        parser.error("--model and --temperature require --provider ollama")
+
     try:
-        service = build_repair_service(args.provider)
+        service = build_repair_service(
+            args.provider,
+            model=args.model,
+            temperature=args.temperature,
+        )
         result = service.repair(args.eval_path)
     except Exception as exc:  # noqa: BLE001 - show a clear CLI failure
         print(f"error: {exc}", file=sys.stderr)
